@@ -2375,8 +2375,8 @@ window.DT_IMAGENS = {
     poderes: [[2500, 430, 'rapido'], [6450, 430, 'forte'], [7300, 430, 'invencivel']],
     patinho: [5115, 446], // dentro do mausoléu: só a Gina passa
     chaos: [[0, 1500], [1630, 3300], [3420, 5200], [5330, 7000], [7150, 8600], [8720, 9700]],
-    prateleiras: [[420, 360, 180], [900, 340, 180], [1540, 370, 120], [2100, 330, 180], [2600, 360, 160], [3050, 300, 180],
-      [3800, 360, 180], [4300, 320, 160], [4780, 385, 120], [5600, 350, 180], [6100, 300, 180], [6500, 360, 160],
+    prateleiras: [[420, 360, 180], [900, 340, 180], [1540, 370, 120], [2100, 330, 180], [2600, 360, 160], [3050, 330, 180],
+      [3800, 360, 180], [4300, 330, 160], [4780, 385, 120], [5600, 350, 180], [6100, 330, 180], [6500, 360, 160],
       [7500, 340, 180], [8000, 300, 180], [8300, 360, 160], [9000, 350, 180]],
     caem: [[3320, 400, 110], [7020, 400, 110], [8615, 400, 100]],
     blocos: [[4950, 300, 170, 110]], // mausoléu baixo: só a Gina passa por baixo
@@ -2465,10 +2465,10 @@ window.DT_IMAGENS = {
   const MAPA3 = {
     largura: 9900,
     poderes: [[2000, 430, 'rapido'], [6000, 430, 'forte'], [7400, 430, 'invencivel']],
-    patinho: [3090, 165], // acima da sacada mais alta
+    patinho: [3090, 180], // acima da sacada mais alta
     chaos: [[0, 1450], [1580, 3250], [3380, 5150], [5300, 6950], [7100, 8550], [8700, 9900]],
-    prateleiras: [[430, 350, 190], [880, 330, 180], [1480, 370, 130], [2080, 330, 190], [2560, 350, 170], [3000, 300, 180],
-      [3780, 350, 190], [4280, 320, 170], [4760, 380, 130], [5580, 345, 190], [6080, 300, 180], [6480, 355, 170],
+    prateleiras: [[430, 350, 190], [880, 330, 180], [1480, 370, 130], [2080, 330, 190], [2560, 350, 170], [3000, 330, 180],
+      [3780, 350, 190], [4280, 330, 170], [4760, 380, 130], [5580, 345, 190], [6080, 330, 180], [6480, 355, 170],
       [7460, 335, 190], [7960, 300, 180], [8260, 360, 170], [9000, 345, 190]],
     caem: [[3270, 400, 100], [6970, 400, 110], [8580, 400, 100]],
     blocos: [[4920, 300, 170, 110]], // ar-condicionado gigante: só a Gina passa por baixo
@@ -2666,11 +2666,12 @@ window.DT_IMAGENS = {
   const MAPA5 = {
     largura: 9900,
     poderes: [[2300, 430, 'rapido'], [5200, 430, 'forte'], [7400, 430, 'invencivel']],
-    patinho: [6125, 160], // em cima da plataforma mais alta, depois do 2º cristal
+    patinho: [5905, 135], // em cima da plataforma mais alta, depois do 2º cristal
     // os vãos de 300px (3000 e 6600) só se atravessam acendendo o cristal azul (tiro da Yasmin)
     chaos: [[0, 1500], [1630, 3000], [3300, 4900], [5040, 6600], [6900, 8400], [8540, 9900]],
-    prateleiras: [[420, 350, 190], [880, 320, 180], [2000, 330, 190], [2500, 340, 170], [3480, 350, 180], [3820, 300, 170],
-      [5560, 320, 180], [6050, 300, 150], [7150, 340, 190], [7700, 320, 170], [9300, 340, 180]],
+    // alturas medidas com a física dos heróis: do chão, o Emerson (pulo mais baixo) alcança até y = 330
+    prateleiras: [[420, 350, 190], [880, 335, 180], [2000, 335, 190], [2500, 340, 170], [3480, 350, 180], [3820, 300, 170],
+      [5560, 335, 180], [5830, 270, 150], [7150, 340, 190], [7700, 335, 170], [9300, 340, 180]],
     caem: [[1515, 400, 100], [4925, 400, 100], [8425, 400, 100]],
     blocos: [],
     portas: [1850, 5300],          // porta de nanquim: só o tiro do Emerson quebra
@@ -4839,7 +4840,8 @@ window.DT_IMAGENS = {
       const c = this, E = DT.ent, j = c.j, H = DT.HEROIS[DT.jogo.ativo];
       c.t += dt; DT.atualizarEfeitos(dt);
       if (c.fim) { c.fimT -= dt; if (c.fimT <= 0 || (c.fimT < 2.4 && DT.ent.avancarP)) this.sair(); return; }
-      if (c.instrucao) { if (E.avancarP || E.puloP || E.baixoP) { c.instrucao = false; DT.som('clique'); } return; }
+      // qualquer toque começa (no celular, tocar no lado esquerdo vira joystick e não conta como "clique")
+      if (c.instrucao) { if (E.avancarP || E.puloP || E.baixoP || (c.t > 0.4 && DT.ponteiro.down)) { c.instrucao = false; DT.som('clique'); } return; }
 
       // velocidade sobe aos poucos; tropeço freia
       c.vel = Math.min(440, c.vel + 6 * dt);
@@ -5900,7 +5902,8 @@ window.DT_IMAGENS = {
     nivel: DT.Nivel, minijogo: DT.Minijogo, decalque: DT.Decalque, corrida: DT.Corrida, chuva: DT.Chuva,
     chefe: DT.Chefe, chefe2: DT.Chefe2, chefe3: DT.Chefe3, chefe4: DT.Chefe4, vitoria: DT.Vitoria });
   // fases e chefões (todos os chefões herdam de DT.Chefe) aceitam pausa e controles de toque
-  const ehJogavel = c => c === DT.Nivel || c === DT.Chefe || DT.Chefe.isPrototypeOf(c);
+  // (a Corrida do Piercing usa PULO e o joystick: sem ela aqui, os controles de toque ficavam desligados no celular)
+  const ehJogavel = c => c === DT.Nivel || c === DT.Chefe || DT.Chefe.isPrototypeOf(c) || c === DT.Corrida;
 
   DT.irPara = function (nome) {
     const cena = CENAS()[nome];
