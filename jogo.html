@@ -725,8 +725,11 @@ window.DT_IMAGENS = {
 
   // Usa as imagens embutidas (js/imagens.js) quando existem: assim o jogo abre até com dois cliques (file://).
   const fonte = f => (window.DT_IMAGENS && window.DT_IMAGENS[f]) || (BASE + f);
+  // arquivo de teste de uma fase (gerado com -Fase N): só traz as imagens dessa fase
+  DT.FASE_TESTE = window.DT_FASE_TESTE || 0;
+  const existe = ([, f]) => !DT.FASE_TESTE || !window.DT_IMAGENS || !!window.DT_IMAGENS[f];
   DT.carregarTudo = async function (progresso) {
-    const imgs = Object.entries(DT.IMAGENS), folhas = Object.entries(DT.FOLHAS);
+    const imgs = Object.entries(DT.IMAGENS).filter(existe), folhas = Object.entries(DT.FOLHAS).filter(existe);
     const total = imgs.length + folhas.length;
     let n = 0;
     for (const [k, f] of imgs) { DT.IM[k] = await Sprites.carregar(fonte(f)); progresso(++n / total); }
@@ -887,6 +890,22 @@ window.DT_IMAGENS = {
     const r = DT.canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left) * DT.L / r.width, y: (e.clientY - r.top) * DT.A / r.height };
   }
+  // Celular: tela cheia (esconde a barra do navegador) e deitado. Pedido em TODO toque enquanto não estiver em
+  // tela cheia, para voltar sozinho depois do teclado ou do WhatsApp. O navegador só aceita dentro do toque.
+  // (No iPhone o Safari não permite tela cheia para sites: lá o jogo só se ajusta ao espaço visível.)
+  DT.pedirTelaCheia = function () {
+    const el = document.documentElement, pedir = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!pedir || document.fullscreenElement || document.webkitFullscreenElement) return;
+    try {
+      const p = pedir.call(el, { navigationUI: 'hide' });
+      if (p && p.then) p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (_) { /* sem suporte */ } }).catch(() => {});
+    } catch (_) { /* sem suporte */ }
+  };
+  addEventListener('touchend', e => {
+    const alvo = e.target && e.target.tagName;
+    if (alvo !== 'INPUT' && alvo !== 'TEXTAREA') DT.pedirTelaCheia(); // não atrapalha quem está digitando
+  }, { passive: true });
+
   DT.iniciarEntrada = function (canvas) {
     canvas.addEventListener('pointerdown', e => {
       const p = coords(e);
@@ -3171,7 +3190,7 @@ window.DT_IMAGENS = {
       c.jog = DT.criarJogador(160, CHAO);
       c.jog.dir = 1; c.jog.controlavel = false;
       c.marcas = []; c.t = 0; c.vitoria = false; c.cartucho = null;
-      c.coracoes = []; c.coracaoT = 14; // primeiro coração aos 14s, depois a cada ~20s
+      c.coracoes = []; c.coracaoT = Math.min(14, c.cfg.coracaoIntervalo || 14); // primeiro coração aos 14s, depois a cada ~20s
       c.itensPoder = []; c.poderT = 24;  // power-up sorteado: primeiro aos 24s, depois a cada ~22s
       DT.jogo.poder = null;
       const K = c.cfg;
@@ -3220,7 +3239,7 @@ window.DT_IMAGENS = {
           const s = plats[Math.floor(Math.random() * plats.length)];
           const x = s.x + s.w / 2 + DT.aleat(-50, 50);
           c.coracoes.push({ x, x0: x, y: -30, alvoY: s.y - 24, vida: 8, t: 0 });
-          c.coracaoT = 20;
+          c.coracaoT = c.cfg.coracaoIntervalo || 20;
           DT.som('carta');
         }
       }
@@ -3932,7 +3951,7 @@ window.DT_IMAGENS = {
   'use strict';
   const DT = window.DT;
   const CHAO = 470;
-  const BAIXO = CHAO - 14, ALTO = CHAO - 110; // alturas em que ele paira (pé do desenho)
+  const BAIXO = CHAO - 14, ALTO = CHAO - 80; // (o alto ficou mais baixo: dá para acertar do chão pulando) // alturas em que ele paira (pé do desenho)
 
   // quadros da folha 'chefe4' (ver ferramentas/mapa-sprites.html?f=fase4/chefe_dragao_tinta.webp)
   const A = {
@@ -3948,7 +3967,7 @@ window.DT_IMAGENS = {
 
   const Chefe4 = DT.Chefe4 = Object.assign(Object.create(DT.Chefe), {
     nome: 'chefe4',
-    cfg: { folha: 'chefe4', arena: 'arena4', vida: 150, nome: 'DRAGÃO DE TINTA', A, refFrame: 0, altura: 170,
+    cfg: { folha: 'chefe4', arena: 'arena4', vida: 110, coracaoIntervalo: 15, nome: 'DRAGÃO DE TINTA', A, refFrame: 0, altura: 170,
       grito: 'ESSE CARTUCHO AGORA É MEU TESOURO!', animFuriaParado: 'furiaParado', derrotaAnimada: true },
 
     iniciar() {
@@ -3972,12 +3991,12 @@ window.DT_IMAGENS = {
       if (!c.chuva || b.estado === 'derrota' || b.sumiu) return;
       c.chuvaT -= dt;
       if (c.chuvaT <= 0) {
-        c.chuvaT = DT.aleat(2.8, 3.6);
+        c.chuvaT = DT.aleat(3.8, 4.4); // mais fácil: 2 gotas a cada ~4 s
         const xs = [DT.clamp(j.x + DT.aleat(-20, 20), 40, DT.L - 40)];
-        while (xs.length < 3) { const x = DT.aleat(60, DT.L - 60); if (xs.every(o => Math.abs(o - x) > 120)) xs.push(x); }
+        while (xs.length < 2) { const x = DT.aleat(60, DT.L - 60); if (xs.every(o => Math.abs(o - x) > 120)) xs.push(x); }
         xs.forEach((x, i) => {
-          c.marcas.push({ tipo: 'chuva', x, t: 1.45 + i * 0.15 });
-          DT.projInimigos.push({ tipo: 'gotaNanquim', x, y: -40, vx: 0, vy: 0, r: 14, vida: 4, dano: 1, espera: 0.55 + i * 0.15,
+          c.marcas.push({ tipo: 'chuva', x, t: 1.75 + i * 0.15 });
+          DT.projInimigos.push({ tipo: 'gotaNanquim', x, y: -40, vx: 0, vy: 0, r: 14, vida: 4, dano: 1, espera: 0.85 + i * 0.15,
             aoAtualizar: (p, d) => { if (p.espera > 0) { p.espera -= d; p.vy = 0; } else p.vy = Math.min(800, p.vy + 1600 * d); },
             aoBater: p => DT.respingo(p.x, CHAO - 6, '#3b1a5c', 10, 200) });
         });
@@ -4020,12 +4039,11 @@ window.DT_IMAGENS = {
         case 'sopro': {
           b.soproT -= dt;
           if (b.soproT <= 0) {
-            b.soproT = 0.12;
+            b.soproT = 0.22; // mais fácil: ~5 bolas, mais lentas
             const ox = b.x + b.dir * 120, oy = b.y - 110;
             const ang = Math.atan2(b.mira.y - oy, b.mira.x - ox) + DT.aleat(-0.12, 0.12);
-            DT.projInimigos.push({ tipo: 'fogoDragao', x: ox, y: oy, vx: Math.cos(ang) * 430, vy: Math.sin(ang) * 430, r: 16, vida: 2.5, dano: 1,
+            DT.projInimigos.push({ tipo: 'fogoDragao', x: ox, y: oy, vx: Math.cos(ang) * 330, vy: Math.sin(ang) * 330, r: 16, vida: 2.5, dano: 1,
               aoBater: p => DT.respingo(p.x, p.y, '#8a3fe0', 6, 160) });
-            if (b.fase === 2) b.mira.x += (j.x - b.mira.x) * 0.25; // na fúria o sopro acompanha o herói
           }
           if (b.t <= 0) this.mudar('soproFim', 0.4);
           break;
@@ -4035,7 +4053,7 @@ window.DT_IMAGENS = {
             const area = { x: b.x - 170, y: CHAO - 70, w: 340, h: 70 }; // rabada varre o chão: pule!
             if (b.animT > 0.15 && DT.sobrepoe(area, DT.caixaDe(j))) { b.acertou = true; DT.ferirJogador(j, 1, b.x); }
           }
-          if (b.t <= 0) this.mudar(b.estado === 'impacto' ? 'tonto' : 'parado', b.estado === 'impacto' ? 1.3 : 0.7 / rapido);
+          if (b.t <= 0) this.mudar(b.estado === 'impacto' ? 'tonto' : 'parado', b.estado === 'impacto' ? 2 : 1.1 / rapido);
           break;
 
         case 'mordCarga':
@@ -4072,7 +4090,7 @@ window.DT_IMAGENS = {
           }
           break;
         case 'tonto': // caído no chão: hora de bater
-          if (b.t <= 0) { this.novoPouso(); this.mudar('parado', 0.4); }
+          if (b.t <= 0) { this.novoPouso(); this.mudar('parado', 0.9); }
           break;
         case 'furia':
           if (b.t <= 0) this.mudar('parado', 0.6);
@@ -4093,7 +4111,8 @@ window.DT_IMAGENS = {
     // escolhe outro ponto para pairar: alterna entre baixo (dá para acertar do chão) e alto (subir nos troncos)
     novoPouso() {
       const b = this.boss, j = this.jog;
-      b.alvoY = b.alvoY > (BAIXO + ALTO) / 2 ? ALTO : BAIXO;
+      b.pousos = (b.pousos || 0) + 1;
+      b.alvoY = b.pousos % 3 === 0 ? ALTO : BAIXO; // fica baixo 2 de cada 3 vezes
       b.alvoX = j.x < DT.L / 2 ? DT.aleat(600, 820) : DT.aleat(140, 360);
     },
 
@@ -5378,20 +5397,6 @@ window.DT_IMAGENS = {
     ctx.restore();
   };
 
-  // No celular: tela cheia (esconde a barra do navegador) e trava deitado, quando o aparelho permite
-  function telaCheia() {
-    const el = document.documentElement;
-    const pedir = el.requestFullscreen || el.webkitRequestFullscreen;
-    if (!pedir || document.fullscreenElement || document.webkitFullscreenElement) return;
-    try {
-      const p = pedir.call(el, { navigationUI: 'hide' });
-      if (p && p.then) {
-        p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (_) { /* sem suporte */ } })
-          .catch(() => { /* navegador recusou: segue sem tela cheia */ });
-      }
-    } catch (_) { /* sem suporte (ex.: iPhone) */ }
-  }
-
   /* ---------- Abertura (libera o som do navegador) ---------- */
   DT.Abertura = {
     nome: 'abertura',
@@ -5400,7 +5405,7 @@ window.DT_IMAGENS = {
       this.t += dt;
       if (DT.ent.avancarP || DT.ent.puloP) {
         if (window.DuckSom) DuckSom.init();
-        if (DT.usandoToque) telaCheia();
+        if (DT.usandoToque) DT.pedirTelaCheia();
         DT.irPara('titulo');
       }
     },
@@ -5447,7 +5452,8 @@ window.DT_IMAGENS = {
       if (escolher && this.t > 0.2) {
         if (window.DuckSom) DuckSom.init();
         DT.som('clique');
-        DT.irPara(this.sel === 0 ? 'cadastro' : 'comoJogar');
+        if (this.sel === 0 && DT.FASE_TESTE) DT.novoJogo(); // arquivo de teste: vai direto para a fase
+        else DT.irPara(this.sel === 0 ? 'cadastro' : 'comoJogar');
       }
     },
     desenhar(ctx) {
@@ -5455,6 +5461,7 @@ window.DT_IMAGENS = {
       fundoEstudio(ctx, t, 0.62);
       DT.desenharLogoSelo(ctx, 480, 140, 120);
       DT.texto(ctx, 'INK ADVENTURE', 480, 274, 28, '#e0a826', 'center');
+      if (DT.FASE_TESTE) DT.texto(ctx, 'TESTE · FASE ' + (DT.FASE_TESTE === 5 ? 'FINAL' : DT.FASE_TESTE), 480, 300, 10, '#9fe1cb', 'center');
       BOTOES_TITULO.forEach((b, i) => {
         const sel = i === this.sel;
         DT.caixa(ctx, b.x, b.y, b.w, b.h, sel ? '#3f6b3a' : 'rgba(18,12,30,0.92)', sel ? '#e0a826' : '#4a3866');
@@ -5604,14 +5611,14 @@ window.DT_IMAGENS = {
       this.perfeita = this.nCartas === this.cartas.length && m.total > 0 && m.pegas >= m.total;
       J.resultado = J.resultado || {};
       J.resultado[J.fase] = { cartas: this.nCartas, moedas: m.pegas, total: m.total, perfeita: this.perfeita };
-      this.proxima = DT.FASES[J.fase + 1] ? J.fase + 1 : null;
+      this.proxima = DT.FASES[J.fase + 1] && !DT.FASE_TESTE ? J.fase + 1 : null;
       if (this.perfeita) setTimeout(() => DT.som('cupom'), 600);
     },
     atualizar(dt) {
       this.t += dt;
       if (this.t > 2 && (DT.ent.avancarP)) {
         if (this.proxima) DT.comecarFase(this.proxima, false);
-        else DT.irPara('final');
+        else DT.irPara(DT.FASE_TESTE ? 'titulo' : 'final');
       }
     },
     desenhar(ctx) {
@@ -5654,7 +5661,7 @@ window.DT_IMAGENS = {
       DT.texto(ctx, achou ? 'ENCONTRADO!' : '???', 784, 456, 8, achou ? '#9fe1cb' : '#4a3866', 'left', false);
       const r = DT.spr('retratos', 3); ctx.drawImage(r, 40, 420, r.width * 90 / r.height, 90);
       DT.texto(ctx, this.perfeita ? 'Perfeita. Não se acostuma.' : 'Bom trabalho. Não se acostuma.', 150, 456, 10, '#f1efe8', 'left', false);
-      const acao = this.proxima ? 'PARA A FASE ' + (this.proxima === 5 ? 'FINAL' : this.proxima) : 'PARA O FINAL';
+      const acao = this.proxima ? 'PARA A FASE ' + (this.proxima === 5 ? 'FINAL' : this.proxima) : DT.FASE_TESTE ? 'PARA O TÍTULO (FIM DO TESTE)' : 'PARA O FINAL';
       if (t > 2 && Math.floor(t * 2) % 2 === 0) DT.texto(ctx, (DT.usandoToque ? 'TOQUE ' : 'ENTER ') + acao, 480, 510, 10, '#ff5fb0', 'center');
     }
   };
@@ -5911,7 +5918,7 @@ window.DT_IMAGENS = {
     DT.jogo = { fase: 1, ativo: 'emerson', vidas: DT.VIDAS_INICIAIS, energia: DT.ENERGIA_MAX, renascendo: 0, tinta: 1,
       moedas: 0, pontos: 0, cartas: [], tempo: 0, checkpoint: null, minijogoFeito: false, acabou: false, comemorando: false,
       resultado: {}, moedasFase: null, poder: null, patinhos: {} };
-    DT.comecarFase(1, false);
+    DT.comecarFase(DT.FASE_TESTE || 1, false); // arquivo de teste de uma fase só começa nela
   };
 
   // Começa uma fase do início. recomeco = depois do Game Over (volta moedas/cartas ao que eram no começo da fase)
